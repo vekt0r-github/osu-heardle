@@ -56,9 +56,11 @@ router.get("/mapsets/random", async (req, res) => {
     },
   }, (error, response, body) => {
     try { 
-      if (error || response.statusCode != 200) throw Error;
+      console.log(response)
+      if (error || response.statusCode != 200) throw error;
       const content = JSON.parse(body);
-      if (!content || !content.length) throw Error;
+      if (!content || !content.length) throw error;
+      console.log(content)
 
       const mapsets = {}; // representative maps, rather
       for (const map of content) {
@@ -120,7 +122,6 @@ router.get("/mapsets/:id", async (req, res) => {
       const content = JSON.parse(body);
       if (!content || !content.length) throw Error;
       const {approved, audio_unavailable} = content[0];
-      console.log(approved, audio_unavailable)
       if (+approved <= 0 || audio_unavailable != 0) throw Error; // unranked or dmca'd
       // 4 = loved, 3 = qualified, 2 = approved, 1 = ranked, 0 = pending, -1 = WIP, -2 = graveyard
       const {artist, artist_unicode, title, title_unicode} = content[0];

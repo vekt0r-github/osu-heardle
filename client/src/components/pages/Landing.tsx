@@ -40,8 +40,8 @@ const Landing = () => {
         >new room</StartButton>
       <h2>instructions</h2>
       <List>
-        <li>one person click "new room" and send link</li>
-        <li>everyone else joins the room via link</li>
+        <li>one person should click "new room" and send the resulting room link</li>
+        <li>everyone else can join the room via link</li>
         <li>this is *not* real multiplayer; join vc to make sure people stay on the same round</li>
       </List>
     </>

@@ -57,7 +57,6 @@ export function post(endpoint, params = {}) {
 export const useReactPath = () => { // https://stackoverflow.com/questions/58442168/why-useeffect-doesnt-run-on-window-location-pathname-changes
   const [path, setPath] = React.useState(window.location.pathname);
   const listenToPopstate = () => {
-    console.log('hi')
     const winPath = window.location.pathname;
     setPath(winPath);
   };

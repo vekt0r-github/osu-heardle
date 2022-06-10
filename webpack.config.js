@@ -9,7 +9,7 @@ module.exports = {
   entry: entryFile,
   output: {
     path: outputDir,
-    publicPath: "/static/",
+    publicPath: "/",
     filename: 'bundle.js',
     clean: true,
   },

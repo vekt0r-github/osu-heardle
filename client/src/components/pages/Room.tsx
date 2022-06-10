@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 
 import Player from "@/components/modules/Player";
@@ -32,6 +32,9 @@ const EmojiText = styled.p`
 `;
 
 const HistoryContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   width: fit-content;
 `;
 
@@ -63,21 +66,28 @@ type Props = {
   settings: Settings,
 }
 
+enum Status { LOADING, PLAYING, ENDED }
+
 const Room = ({ settings }: Props) => {
   let { code } = useParams();
   if (!code || !code.match(/^[0-9a-zA-Z]{5}$/)) return <Navigate to="/404" />;
   code = code.toUpperCase(); // for consistent seeding
   const [history, setHistory] = useState<GameSummary[]>([]);
   const [game, setGame] = useState<Game>();
+  const [status, setStatus] = useState<Status>(Status.ENDED);
   const counter = useRef(0);
   
   const { useUnicode } = settings;
 
-  const inHistory = (id: number) => history.map(r => r.song.id).includes(id);
-  const gameEnded = !game || inHistory(game.song.id);
+  const historyIndex = (id: number) => ((x: number) => x === -1 ? undefined : x)(history.map(r => r.song.id).indexOf(id));
+  const inHistory = (id: number) => historyIndex(id) !== undefined;
+  
+  const gameEnded = status === Status.ENDED;
+  const allowNext = !game || inHistory(game.song.id);
 
-  const startRandomGame = async (): Promise<void> => {
-    if (!gameEnded) return; // don't allow aborting current game
+  const startRandomGame = useCallback(async (force=false): Promise<void> => {
+    if (!force && !allowNext) return; // don't allow aborting current game
+    setStatus(Status.LOADING);
     // randomly generated ranked not in history
     counter.current++;
     const {song: rawSong, guessList: rawGuessList} = await get(`/api/mapsets/random`, {
@@ -100,19 +110,12 @@ const Room = ({ settings }: Props) => {
         title: makeOption(songData, "title"),
       })),
     }
-    startGame(game);
-  }
+    startGame(game, force);
+  }, [gameEnded]);
 
-  const endGame = (game: Game) => (guesses: SongData[]) => {
-    if (inHistory(game.song.id)) { // old game
-      return;
-    } else { // new game
-      setHistory((history) => [...history, computeGameSummary(game, guesses)]);
-    }
-  }
-
-  const startGame = (newGame: Game) => {
-    if (!gameEnded) return; // don't allow aborting current game
+  const startGame = (newGame: Game, force=false) => {
+    if (!force && !allowNext) return; // don't allow aborting current game
+    setStatus(Status.PLAYING); // TODO: can these be linked to the same rerender
     setGame(newGame);
   }
 
@@ -121,19 +124,35 @@ const Room = ({ settings }: Props) => {
     startRandomGame(); // start game on load
   }, []); 
 
-  if (!game) return <p>now loading!!!!</p>
+  useEffect(() => {
+    if (!gameEnded) return; // no key listener while any game is active
+    const f = (e: KeyboardEvent) => {
+      if (e.code === "Enter") startRandomGame();
+    }; // key listener
+    document.addEventListener("keydown", f);
+    return () => document.removeEventListener("keydown", f);
+  }, [gameEnded]);
+
+  const endGame = (game: Game) => (guesses: SongData[]) => {
+    setStatus(Status.ENDED);
+    if (inHistory(game.song.id)) { // old game
+      return;
+    } else { // new game
+      setHistory((history) => [...history, computeGameSummary(game, guesses)]);
+    }
+  }
 
   const [entries, headerEntries] = (() => {
     const header = (text: string) => ({text, color: "var(--clr-background)", onclick: () => {}});
-    const headerEntries = [[header("set id"), header("song"), header("result"), header("score")]];
+    const headerEntries = [[header("round"), header("song"), header("result"), header("score")]];
     const entries: TableEntry[][] = [];
     for (let i = history.length - 1; i >= 0; i--) { // skip first row
       const summary = history[i]
       const song = summary.song;
       const color = (song.id === game?.song?.id) ? "var(--clr-selected)" : "var(--clr-background)";
-      let text: string | JSX.Element = <Link href={`//osu.ppy.sh/s/${song.id}`} target="_blank" rel="noopener noreferrer">{song.id}</Link>;
+      let text: string | JSX.Element = `#${i+1}`;
       const first = {text, color};
-      text = song.displayName(useUnicode);
+      text = <Link href={`//osu.ppy.sh/s/${song.id}`} target="_blank" rel="noopener noreferrer">{song.displayName(useUnicode)}</Link>;
       const onclick = () => startGame(history[i]);
       const second = {text, color, onclick};
       text = <EmojiText>{showResult(summary.result)}</EmojiText>;
@@ -147,27 +166,30 @@ const Room = ({ settings }: Props) => {
 
   return (
     <>
-      <Info size="1.5em">round #{history.length + (gameEnded ? 0 : 1)}</Info>
-      <Info>score: {history.reduce((acc, {score}) => acc + score, 0)} pts</Info>
-      <Button onClick={startRandomGame} disabled={!gameEnded}>next song</Button>
-      {game ?
-        <Player
-          key={game.song.id}
-          song={game.song}
-          guessList={game.guessList}
-          useUnicode={settings.useUnicode}
-          endGame={endGame(game)}
-          settings={settings}
-        /> : null}
-      {history.length ? 
-        <HistoryContainer>
-          <p>history:</p>
-          <Table
-            columnWidths={['80px', '250px', 'auto', 'auto']} // can shrink
-            headerEntries={headerEntries}
-            entries={entries}
-          />
-        </HistoryContainer> : null}
+      {status === Status.LOADING ? <p>now loading!!!!</p> : null}
+      {game ? <>
+        <Info size="1.5em">round #{(historyIndex(game?.song?.id ?? -1) ?? history.length) + 1}</Info>
+        <Info>score: {history.reduce((acc, {score}) => acc + score, 0)} pts</Info>
+        <Button onClick={startRandomGame} disabled={!allowNext}>next song</Button>
+        {game ?
+          <Player
+            key={game.song.id}
+            song={game.song}
+            guessList={game.guessList}
+            useUnicode={settings.useUnicode}
+            endGame={endGame(game)}
+            settings={settings}
+          /> : null}
+        {history.length ? 
+          <HistoryContainer>
+            <p>previous rounds:</p>
+            <Table
+              columnWidths={['auto', '250px', 'auto', 'auto']} // can shrink
+              headerEntries={headerEntries}
+              entries={entries}
+            />
+          </HistoryContainer> : null}
+      </> : null}
     </>
   );
 }

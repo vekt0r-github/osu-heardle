@@ -119,14 +119,15 @@ const App = () => {
   const settings: Settings = { useUnicode, darkMode, volume };
 
   useEffect(() => {
-    const f = () => setShowSettings(false);
+    const f = (e: KeyboardEvent) => {
+      if (e.code === "Escape") setShowSettings(false);
+    };
     document.addEventListener("keydown", f);
     return () => document.removeEventListener("keydown", f);
   }, []);
 
   const path = useReactPath();
   useEffect(() => { // jank alert
-    console.log(path);
     const urlParts = path.split('/');
     let code: string | undefined = undefined;
     for (const [i, part] of urlParts.entries()) {

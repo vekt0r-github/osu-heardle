@@ -79,13 +79,13 @@ const Player = ({guessList, song, useUnicode, endGame, settings}: Props) => {
   const artistList = sortUnique(guessList.map(({artist}) => artist));
   const titleList = sortUnique(guessList.map(({title}) => title));
 
-  const finished = won || stage > 5;
+  const gameEnded = won || stage > 5;
 
   const checkArtist = (artist: OptionString) => artist(false).toLowerCase() === song.artist(false).toLowerCase();
   const checkTitle = (title: OptionString) => title(false).toLowerCase() === song.title(false).toLowerCase();
 
   const guess = (artistStr: string, titleStr: string, skip=false) => {
-    if (finished) return;
+    if (gameEnded) return;
     let artist: OptionString | undefined, title: OptionString | undefined;
     if (skip) {
       artist = optionOf("", "");
@@ -152,7 +152,7 @@ const Player = ({guessList, song, useUnicode, endGame, settings}: Props) => {
         skip={() => { if (stage <= 5) guess("", "", true); }}
         settings={settings}
         />
-      <InputContainer autoComplete="off" disabled={finished}>
+      <InputContainer autoComplete="off" disabled={gameEnded}>
         {makeDatalist("artist", artist, setArtist, artistList)}
         {makeDatalist("title", title, setTitle, titleList)}
         <GuessButton 
@@ -164,7 +164,7 @@ const Player = ({guessList, song, useUnicode, endGame, settings}: Props) => {
           }}
           fontSize="1em"
           value="guess"
-          disabled={finished}
+          disabled={gameEnded}
           />
       </InputContainer>
       {guesses.length ? 
