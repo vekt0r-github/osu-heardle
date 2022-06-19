@@ -76,6 +76,14 @@ const PlayerAudio = ({song, useUnicode, stage, won, skip, settings}: Props) => {
       player.current.play();
       const refreshRate = 10; // ms
       if (!finished) interval.current = setInterval(() => {
+        // Problem: when you press skip in the parent component while the audio is still playing, 
+        // this child component will disappear while this interval is still running. 
+        // player.current would now null, so we must check this first
+        if (!player.current)  {
+          if (interval.current) clearInterval(interval.current);
+          return;
+        }
+
         if (player.current!.currentTime + refreshRate/1000 >= STAGES[stage]) stop();
       }, refreshRate);
       setStatus(PLAYING);
