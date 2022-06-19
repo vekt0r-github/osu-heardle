@@ -54,16 +54,17 @@ const GuessesContainer = styled.div`
 type Props = {
   guessList: SongData[],
   song: Song,
-  useUnicode: boolean,
   endGame: (guesses: SongData[]) => void,
   settings: Settings,
 }
 
-const Player = ({guessList, song, useUnicode, endGame, settings}: Props) => {
+const Player = ({guessList, song, endGame, settings}: Props) => {
   const [artist, setArtist] = useState<string>("");
   const [title, setTitle] = useState<string>("");
   const [guesses, setGuesses] = useState<SongData[]>([]);
   const [won, setWon] = useState<boolean>(false);
+
+  const { useUnicode } = settings;
 
   const sortUnique = (arr: OptionString[]) => {
     // const cmp = (a: OptionString, b: OptionString) => {
@@ -81,8 +82,12 @@ const Player = ({guessList, song, useUnicode, endGame, settings}: Props) => {
 
   const gameEnded = won || stage > 5;
 
-  const checkArtist = (artist: OptionString) => artist(false).toLowerCase() === song.artist(false).toLowerCase();
-  const checkTitle = (title: OptionString) => title(false).toLowerCase() === song.title(false).toLowerCase();
+  const checkArtist = (artist: OptionString) => 
+    artist(false).toLowerCase() === song.artist(false).toLowerCase() ||
+    artist(true).toLowerCase() === song.artist(true).toLowerCase();
+  const checkTitle = (title: OptionString) => 
+    title(false).toLowerCase() === song.title(false).toLowerCase() ||
+    title(true).toLowerCase() === song.title(true).toLowerCase();
 
   const guess = (artistStr: string, titleStr: string, skip=false) => {
     if (gameEnded) return;
@@ -91,8 +96,8 @@ const Player = ({guessList, song, useUnicode, endGame, settings}: Props) => {
       artist = optionOf("", "");
       title = optionOf("", "");
     } else {
-      for (const x of artistList) { if (x(false) === artistStr) artist = x; }
-      for (const x of titleList) { if (x(false) === titleStr) title = x; }
+      for (const x of artistList) { if (x(useUnicode) === artistStr) artist = x; }
+      for (const x of titleList) { if (x(useUnicode) === titleStr) title = x; }
     }
     if (!artist || !title) return;
     let guessObj = {artist, title};

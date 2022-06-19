@@ -69,22 +69,32 @@ const PlayerAudio = ({song, useUnicode, stage, won, skip, settings}: Props) => {
     if (player.current) player.current.volume = volume / 100;
   }, [volume]);
 
+  useEffect(() => { 
+    if (status === PLAYING) {
+      const refreshRate = 10; // ms
+      if (!finished) interval.current = setInterval(() => {
+        if (player.current!.currentTime + refreshRate/1000 >= STAGES[stage]) stop();
+      }, refreshRate);
+    }
+    return () => {
+      if (interval.current) {
+        clearInterval(interval.current);
+        interval.current = undefined;
+      }
+    };
+  }, [status])
+
   const play = () => {
     if (player.current) { 
       player.current.volume = volume / 100;
       player.current.currentTime = 0;
       player.current.play();
-      const refreshRate = 10; // ms
-      if (!finished) interval.current = setInterval(() => {
-        if (player.current!.currentTime + refreshRate/1000 >= STAGES[stage]) stop();
-      }, refreshRate);
       setStatus(PLAYING);
     }
   }
 
   const stop = () => {
     if (player.current) { 
-      if (interval.current) clearInterval(interval.current);
       player.current.pause(); 
       player.current.currentTime = 0;
       setStatus(PAUSED);

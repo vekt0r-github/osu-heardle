@@ -14,7 +14,7 @@ const List = styled.ul`
   margin: 0;
   padding-left: var(--m);
   line-height: 1.5em;
-  max-width: 360px;
+  max-width: 380px;
   & > li {
     margin-bottom: var(--xs);
   }
@@ -43,6 +43,15 @@ const Landing = () => {
         <li>one person should click "new room" and send the resulting room link</li>
         <li>everyone else can join the room via link</li>
         <li>this is *not* real multiplayer; join vc to make sure people stay on the same round</li>
+      </List>
+      <h2>notes</h2>
+      <List>
+        <li>
+          biased slightly towards more popular maps, to make it easier
+          <ul>
+            <li>side effect: rooms are not actually deterministic as playcounts may update; try to get everyone in the room to advance at the same time</li>
+          </ul>
+        </li>
       </List>
     </>
   )

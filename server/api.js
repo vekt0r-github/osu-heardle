@@ -52,33 +52,41 @@ router.get("/mapsets/random", async (req, res) => {
     qs: {
       k: process.env.OSU_API_KEY,
       since: randomTime,
-      m: 0, // filter to standard; not strictly necessary
+      // m: 0, // filter to standard; not strictly necessary
     },
   }, (error, response, body) => {
     try { 
-      console.log(response)
+      // console.log(response)
       if (error || response.statusCode != 200) throw error;
       const content = JSON.parse(body);
       if (!content || !content.length) throw error;
-      console.log(content)
+      // console.log(content)
 
       const mapsets = {}; // representative maps, rather
       for (const map of content) {
         const {approved, audio_unavailable} = map;
         if (+approved <= 0 || audio_unavailable != 0) continue; // unranked or dmca'd
         // 4 = loved, 3 = qualified, 2 = approved, 1 = ranked, 0 = pending, -1 = WIP, -2 = graveyard
-        const {beatmapset_id, playcount} = map;
-        if (!(beatmapset_id in map)) {
+        const {beatmapset_id, playcount, difficultyrating} = map;
+        const weightedPlaycount = (+playcount) * (+difficultyrating);
+        if (!(beatmapset_id in mapsets)) {
           mapsets[beatmapset_id] = map;
-          map.weight = +playcount;
+          map.weightedPlaycount = weightedPlaycount;
         } else {
           const otherMap = mapsets[beatmapset_id];
-          otherMap.weight += +playcount; // will be used as a popularity metric
+          otherMap.weightedPlaycount += weightedPlaycount;
         }
       }
       const mapsetsList = Object.values(mapsets);
-      const POPULARITY_WEIGHTING = 0.5; // more = favor more popular maps
-      const weights = mapsetsList.map(set => Math.round(set.weight ** POPULARITY_WEIGHTING));
+      const POPULARITY_WEIGHTING = 4.6; // more = favor more popular maps
+      const POPULARITY_BASELINE = 20; // # of plays to count as zero on a log scale
+      const weights = mapsetsList.map(set => {
+        const popularity = Math.sqrt(set.weightedPlaycount) * set.favourite_count;
+        return popularity
+        const weight = Math.log(Math.max(popularity / POPULARITY_BASELINE, 0)) ** POPULARITY_WEIGHTING;
+        return Math.round(weight)
+      });
+      console.log(weights);
       const mapset = weightedRandomChoice(rng)(mapsetsList, weights);
       const {beatmapset_id: id, artist, artist_unicode, title, title_unicode} = mapset;
       const song = {

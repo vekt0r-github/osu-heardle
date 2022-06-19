@@ -26,7 +26,7 @@ const AppContainer = styled.div<{ dark: boolean }>`
     --clr-accent: #c572b2;
     --clr-selected: #575701;
     --clr-green: #5c5;
-    --clr-link: #6a6af0;
+    --clr-link: #aaf;
   ` : css`
     --clr-background: #f6f6f6;
     --clr-text: #111;
@@ -112,11 +112,15 @@ const App = () => {
   const [code, setCode] = useState<string>();
   const [showSettings, setShowSettings] = useState<boolean>(false);
 
-  const [useUnicode, setUseUnicode] = useState<boolean>(false);
-  const [darkMode, setDarkMode] = useState<boolean>(true);
-  const [volume, setVolume] = useState<number>(20);
+  const initSettings = JSON.parse(localStorage.getItem('settings') ?? "{}");
+  const [useUnicode, setUseUnicode] = useState<boolean>(initSettings.useUnicode ?? false);
+  const [darkMode, setDarkMode] = useState<boolean>(initSettings.darkMode ?? true);
+  const [volume, setVolume] = useState<number>(initSettings.volume ?? 20);
 
   const settings: Settings = { useUnicode, darkMode, volume };
+  useEffect(() => {
+    localStorage.setItem('settings', JSON.stringify(settings));
+  }, [settings]);
 
   useEffect(() => {
     const f = (e: KeyboardEvent) => {

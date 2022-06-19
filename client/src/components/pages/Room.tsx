@@ -68,14 +68,60 @@ type Props = {
 
 enum Status { LOADING, PLAYING, ENDED }
 
+const makeOption = (obj: {[k: string]: any}, props: string[]) => {
+  const newObj = {...obj};
+  for (const prop of props) {
+    newObj[prop] = optionOf(obj[prop], obj[prop+"Unicode"]);
+    delete newObj[prop+"Unicode"];
+  }
+  return newObj;
+}
+
+const unmakeOption = (obj: {[k: string]: any}, props: string[]) => {
+  const newObj = {...obj};
+  for (const prop of props) {
+    newObj[prop+"Unicode"] = obj[prop](true);
+    newObj[prop] = obj[prop](false);
+  }
+  return newObj;
+}
+
+const fromRawGame = (rawGame: any) => {
+  const {song: rawSong, guessList: rawGuessList} = rawGame;
+  const song = makeOption(rawSong, ["artist", "title", "displayName"]);
+  return {...rawGame, // want to keep other properties if it's a GameSummary
+    song: (({id, path, artist, title, displayName}) => ({id, path, artist, title, displayName}))(song),
+    guessList: rawGuessList.map((songData: any) => {
+      return (({artist, title}) => ({artist, title}))(makeOption(songData, ["artist", "title"]));
+    }),
+  }
+}
+
+const toRawGame = (game: any) => {
+  const {song, guessList} = game;
+  const rawSong = unmakeOption(song, ["artist", "title", "displayName"]);
+  return {...game, // want to keep other properties if it's a GameSummary
+    song: rawSong,
+    guessList: guessList.map((songData: any) => {
+      return unmakeOption(songData, ["artist", "title"]);
+    }),
+  }
+}
+
 const Room = ({ settings }: Props) => {
   let { code } = useParams();
   if (!code || !code.match(/^[0-9a-zA-Z]{5}$/)) return <Navigate to="/404" />;
   code = code.toUpperCase(); // for consistent seeding
-  const [history, setHistory] = useState<GameSummary[]>([]);
+  
+  const initHistory = JSON.parse(localStorage.getItem(`history|${code}`) ?? "[]");
+  const [history, setHistory] = useState<GameSummary[]>(initHistory.map(fromRawGame));
+  useEffect(() => {
+    const a = history.map(toRawGame)
+    localStorage.setItem(`history|${code}`, JSON.stringify(a));
+  }, [history]);
+
   const [game, setGame] = useState<Game>();
   const [status, setStatus] = useState<Status>(Status.ENDED);
-  const counter = useRef(0);
   
   const { useUnicode } = settings;
 
@@ -85,31 +131,16 @@ const Room = ({ settings }: Props) => {
   const gameEnded = status === Status.ENDED;
   const allowNext = !game || inHistory(game.song.id);
 
-  const startRandomGame = useCallback(async (force=false): Promise<void> => {
+  const startRandomGame = useCallback(async (tries=0, force=false): Promise<void> => {
     if (!force && !allowNext) return; // don't allow aborting current game
     setStatus(Status.LOADING);
     // randomly generated ranked not in history
-    counter.current++;
-    const {song: rawSong, guessList: rawGuessList} = await get(`/api/mapsets/random`, {
-      seed: `${code}|${counter.current}`,
+    tries++;
+    const rawGame = await get(`/api/mapsets/random`, {
+      seed: `${code}|${history.length}|${tries}`,
     });
-    if (inHistory(rawSong.id)) return await startRandomGame();
-    const makeOption = <T extends {[k: string]: any}, K extends keyof T>(obj: T, prop: (T[K] extends string ? K : never)) => {
-      return optionOf(obj[prop], obj[prop+"Unicode"]);
-    }
-    const game = {
-      song: {
-        id: rawSong.id,
-        path: rawSong.path,
-        artist: makeOption(rawSong, "artist"),
-        title: makeOption(rawSong, "title"),
-        displayName: makeOption(rawSong, "displayName"),
-      },
-      guessList: rawGuessList.map((songData: any) => ({
-        artist: makeOption(songData, "artist"),
-        title: makeOption(songData, "title"),
-      })),
-    }
+    if (inHistory(rawGame.song.id)) return await startRandomGame(tries);
+    const game = fromRawGame(rawGame);
     startGame(game, force);
   }, [gameEnded]);
 
@@ -176,7 +207,6 @@ const Room = ({ settings }: Props) => {
             key={game.song.id}
             song={game.song}
             guessList={game.guessList}
-            useUnicode={settings.useUnicode}
             endGame={endGame(game)}
             settings={settings}
           /> : null}
