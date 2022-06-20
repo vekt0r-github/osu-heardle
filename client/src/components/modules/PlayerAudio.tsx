@@ -73,7 +73,8 @@ const PlayerAudio = ({song, useUnicode, stage, won, skip, settings}: Props) => {
     if (status === PLAYING) {
       const refreshRate = 10; // ms
       if (!finished) interval.current = setInterval(() => {
-        if (player.current!.currentTime + refreshRate/1000 >= STAGES[stage]) stop();
+        if (!player.current) return;
+        if (player.current.currentTime + refreshRate/1000 >= STAGES[stage]) stop();
       }, refreshRate);
     }
     return () => {
