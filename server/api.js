@@ -59,8 +59,8 @@ router.get("/mapsets/random", async (req, res) => {
       // console.log(response)
       if (error || response.statusCode != 200) throw error;
       const content = JSON.parse(body);
+      console.log(content)
       if (!content || !content.length) throw error;
-      // console.log(content)
 
       const mapsets = {}; // representative maps, rather
       for (const map of content) {
